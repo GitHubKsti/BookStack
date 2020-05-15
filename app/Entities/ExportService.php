@@ -91,12 +91,12 @@ class ExportService
         $xpath = new DOMXPath($html_tree);
         $nodes = $xpath->query("//div[@class='entity-meta']");
         foreach($nodes as $node) {
-                $node->setAttribute('style', 'visibility:hidden;');
+		$node->parentNode->removeChild($node);
 	}
 	$nodes = $xpath->query("//h1[@id='bkmrk-page-title']");
         foreach($nodes as $node) {
-                $node->setAttribute('style', 'visibility:hidden;');
-        }
+		$node->parentNode->removeChild($node);
+	}
         $html=$html_tree->saveHTML();
 
         return $this->htmlToPdf($html);
