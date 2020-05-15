@@ -7,6 +7,8 @@ use DomPDF;
 use Exception;
 use SnappyPDF;
 use Throwable;
+use DOMDocument;
+use DOMXPath;
 
 class ExportService
 {
@@ -76,10 +78,23 @@ class ExportService
     public function pageToPdf(Page $page)
     {
         $page->html = (new PageContent($page))->render();
-        $html = view('pages.export', [
+
+
+
+	$html = view('pages.export', [
             'page' => $page,
             'format' => 'pdf',
-        ])->render();
+    ])->render();
+
+	$html_tree= new DOMDocument;
+        $html_tree->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        $xpath = new DOMXPath($html_tree);
+        $nodes = $xpath->query("//div[@class='entity-meta']");
+        foreach($nodes as $node) {
+                $node->setAttribute('style', 'visibility:hidden;');
+        }
+        $html=$html_tree->saveHTML();
+
         return $this->htmlToPdf($html);
     }
 
