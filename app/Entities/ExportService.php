@@ -84,12 +84,16 @@ class ExportService
 	$html = view('pages.export', [
             'page' => $page,
             'format' => 'pdf',
-    ])->render();
+        ])->render();
 
 	$html_tree= new DOMDocument;
         $html_tree->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
         $xpath = new DOMXPath($html_tree);
         $nodes = $xpath->query("//div[@class='entity-meta']");
+        foreach($nodes as $node) {
+                $node->setAttribute('style', 'visibility:hidden;');
+	}
+	$nodes = $xpath->query("//h1[@id='bkmrk-page-title']");
         foreach($nodes as $node) {
                 $node->setAttribute('style', 'visibility:hidden;');
         }
