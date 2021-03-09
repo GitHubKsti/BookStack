@@ -40,6 +40,20 @@ class PageExportController extends Controller
         return $this->downloadResponse($pdfContent, $pageSlug . '.pdf');
     }
 
+     /**
+     * Exports a page to a PDF without meta informations such as history and page title.
+     * https://github.com/barryvdh/laravel-dompdf
+     * @throws NotFoundException
+     * @throws Throwable
+     */
+    public function pdfNoMeta(string $bookSlug, string $pageSlug)
+    {
+        $page = $this->pageRepo->getBySlug($bookSlug, $pageSlug);
+        $page->html = (new PageContent($page))->render();
+        $pdfContent = $this->exportService->pageToPdf($page);
+        return $this->downloadResponse($pdfContent, $pageSlug . '.pdf');
+    }
+
     /**
      * Export a page to a self-contained HTML file.
      * @throws NotFoundException

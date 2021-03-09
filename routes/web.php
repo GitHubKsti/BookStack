@@ -55,7 +55,8 @@ Route::group(['middleware' => 'auth'], function () {
         Route::get('/{bookSlug}/draft/{pageId}', 'PageController@editDraft');
         Route::post('/{bookSlug}/draft/{pageId}', 'PageController@store');
         Route::get('/{bookSlug}/page/{pageSlug}', 'PageController@show');
-        Route::get('/{bookSlug}/page/{pageSlug}/export/pdf', 'PageExportController@pdf');
+	Route::get('/{bookSlug}/page/{pageSlug}/export/pdf', 'PageExportController@pdf');
+	Route::get('/{bookSlug}/page/{pageSlug}/export/pdfnometa', 'PageExportController@pdfNoMeta')	;
         Route::get('/{bookSlug}/page/{pageSlug}/export/html', 'PageExportController@html');
         Route::get('/{bookSlug}/page/{pageSlug}/export/plaintext', 'PageExportController@plainText');
         Route::get('/{bookSlug}/page/{pageSlug}/edit', 'PageController@edit');
