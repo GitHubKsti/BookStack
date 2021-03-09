@@ -38,7 +38,7 @@ function editorPaste(event, editor, wysiwygComponent) {
                 editor.dom.replace(newEl, id);
             }).catch(err => {
                 editor.dom.remove(id);
-                window.$events.emit('error', trans('errors.image_upload_error'));
+                window.$events.emit('error', wysiwygComponent.imageUploadErrorText);
                 console.log(err);
             });
         }, 10);
@@ -98,21 +98,15 @@ function registerEditorShortcuts(editor) {
 
     // Loop through callout styles
     editor.shortcuts.add('meta+9', '', function() {
-        let selectedNode = editor.selection.getNode();
-        let formats = ['info', 'success', 'warning', 'danger'];
+        const selectedNode = editor.selection.getNode();
+        const callout = selectedNode ? selectedNode.closest('.callout') : null;
 
-        if (!selectedNode || selectedNode.className.indexOf('callout') === -1) {
-            editor.formatter.apply('calloutinfo');
-            return;
-        }
+        const formats = ['info', 'success', 'warning', 'danger'];
+        const currentFormatIndex = formats.findIndex(format => callout && callout.classList.contains(format));
+        const newFormatIndex = (currentFormatIndex + 1) % formats.length;
+        const newFormat = formats[newFormatIndex];
 
-        for (let i = 0; i < formats.length; i++) {
-            if (selectedNode.className.indexOf(formats[i]) === -1) continue;
-            let newFormat = (i === formats.length -1) ? formats[0] : formats[i+1];
-            editor.formatter.apply('callout' + newFormat);
-            return;
-        }
-        editor.formatter.apply('p');
+        editor.formatter.apply('callout' + newFormat);
     });
 
 }
@@ -143,7 +137,7 @@ function codePlugin() {
 
         if (!elemIsCodeBlock(selectedNode)) {
             const providedCode = editor.selection.getNode().textContent;
-            window.vues['code-editor'].open(providedCode, '', (code, lang) => {
+            window.components.first('code-editor').open(providedCode, '', (code, lang) => {
                 const wrap = document.createElement('div');
                 wrap.innerHTML = `<pre><code class="language-${lang}"></code></pre>`;
                 wrap.querySelector('code').innerText = code;
@@ -161,7 +155,7 @@ function codePlugin() {
         let lang = selectedNode.hasAttribute('data-lang') ? selectedNode.getAttribute('data-lang') : '';
         let currentCode = selectedNode.querySelector('textarea').textContent;
 
-        window.vues['code-editor'].open(currentCode, lang, (code, lang) => {
+        window.components.first('code-editor').open(currentCode, lang, (code, lang) => {
             const editorElem = selectedNode.querySelector('.CodeMirror');
             const cmInstance = editorElem.CodeMirror;
             if (cmInstance) {
@@ -242,7 +236,7 @@ function codePlugin() {
     });
 }
 
-function drawIoPlugin(drawioUrl, isDarkMode) {
+function drawIoPlugin(drawioUrl, isDarkMode, pageId, wysiwygComponent) {
 
     let pageEditor = null;
     let currentNode = null;
@@ -276,7 +270,6 @@ function drawIoPlugin(drawioUrl, isDarkMode) {
     async function updateContent(pngData) {
         const id = "image-" + Math.random().toString(16).slice(2);
         const loadingImage = window.baseUrl('/loading.gif');
-        const pageId = Number(document.getElementById('page-editor').getAttribute('page-id'));
 
         // Handle updating an existing image
         if (currentNode) {
@@ -287,7 +280,7 @@ function drawIoPlugin(drawioUrl, isDarkMode) {
                 pageEditor.dom.setAttrib(imgElem, 'src', img.url);
                 pageEditor.dom.setAttrib(currentNode, 'drawio-diagram', img.id);
             } catch (err) {
-                window.$events.emit('error', trans('errors.image_upload_error'));
+                window.$events.emit('error', wysiwygComponent.imageUploadErrorText);
                 console.log(err);
             }
             return;
@@ -302,7 +295,7 @@ function drawIoPlugin(drawioUrl, isDarkMode) {
                 pageEditor.dom.get(id).parentNode.setAttribute('drawio-diagram', img.id);
             } catch (err) {
                 pageEditor.dom.remove(id);
-                window.$events.emit('error', trans('errors.image_upload_error'));
+                window.$events.emit('error', wysiwygComponent.imageUploadErrorText);
                 console.log(err);
             }
         }, 5);
@@ -408,23 +401,32 @@ function listenForBookStackEditorEvents(editor) {
         editor.setContent(content);
     });
 
+    // Insert editor content at the current location
+    window.$events.listen('editor::insert', ({html}) => {
+        editor.insertContent(html);
+    });
+
+    // Focus on the editor
+    window.$events.listen('editor::focus', () => {
+        editor.focus();
+    });
 }
 
 class WysiwygEditor {
 
-    constructor(elem) {
-        this.elem = elem;
+    setup() {
+        this.elem = this.$el;
 
-        const pageEditor = document.getElementById('page-editor');
-        this.pageId = pageEditor.getAttribute('page-id');
-        this.textDirection = pageEditor.getAttribute('text-direction');
+        this.pageId = this.$opts.pageId;
+        this.textDirection = this.$opts.textDirection;
+        this.imageUploadErrorText = this.$opts.imageUploadErrorText;
         this.isDarkMode = document.documentElement.classList.contains('dark-mode');
 
-        this.plugins = "image table textcolor paste link autolink fullscreen imagetools code customhr autosave lists codeeditor media";
+        this.plugins = "image imagetools table textcolor paste link autolink fullscreen code customhr autosave lists codeeditor media";
         this.loadPlugins();
 
         this.tinyMceConfig = this.getTinyMceConfig();
-        window.$events.emitPublic(elem, 'editor-tinymce::pre-init', {config: this.tinyMceConfig});
+        window.$events.emitPublic(this.elem, 'editor-tinymce::pre-init', {config: this.tinyMceConfig});
         window.tinymce.init(this.tinyMceConfig);
     }
 
@@ -435,7 +437,7 @@ class WysiwygEditor {
         const drawioUrlElem = document.querySelector('[drawio-url]');
         if (drawioUrlElem) {
             const url = drawioUrlElem.getAttribute('drawio-url');
-            drawIoPlugin(url, this.isDarkMode);
+            drawIoPlugin(url, this.isDarkMode, this.pageId, this);
             this.plugins += ' drawio';
         }
 
@@ -641,6 +643,7 @@ class WysiwygEditor {
 
                 });
 
+                // Custom drop event handling
                 editor.on('drop', function (event) {
                     let dom = editor.dom,
                         rng = tinymce.dom.RangeUtils.getCaretRangeFromPoint(event.clientX, event.clientY, editor.getDoc());

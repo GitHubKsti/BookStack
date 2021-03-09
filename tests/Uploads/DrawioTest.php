@@ -1,6 +1,6 @@
 <?php namespace Tests\Uploads;
 
-use BookStack\Entities\Page;
+use BookStack\Entities\Models\Page;
 use BookStack\Uploads\Image;
 use Tests\TestCase;
 
@@ -69,7 +69,7 @@ class DrawioTest extends TestCase
         $editor = $this->getEditor();
 
         $resp = $this->actingAs($editor)->get($page->getUrl('/edit'));
-        $resp->assertSee('drawio-url="https://www.draw.io/?embed=1&amp;proto=json&amp;spin=1"');
+        $resp->assertSee('drawio-url="https://embed.diagrams.net/?embed=1&amp;proto=json&amp;spin=1"');
 
         config()->set('services.drawio', false);
         $resp = $this->actingAs($editor)->get($page->getUrl('/edit'));

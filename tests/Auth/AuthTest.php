@@ -2,7 +2,7 @@
 
 use BookStack\Auth\Role;
 use BookStack\Auth\User;
-use BookStack\Entities\Page;
+use BookStack\Entities\Models\Page;
 use BookStack\Notifications\ConfirmEmail;
 use BookStack\Notifications\ResetPassword;
 use BookStack\Settings\SettingService;
@@ -170,6 +170,11 @@ class AuthTest extends BrowserKitTest
             ->seePageIs('/register/confirm')
             ->seeInDatabase('users', ['name' => $user->name, 'email' => $user->email, 'email_confirmed' => false]);
 
+        $this->visit('/')
+            ->seePageIs('/register/confirm/awaiting');
+
+        auth()->logout();
+
         $this->visit('/')->seePageIs('/login')
             ->type($user->email, '#email')
             ->type($user->password, '#password')
@@ -202,6 +207,10 @@ class AuthTest extends BrowserKitTest
             ->seePageIs('/register/confirm')
             ->seeInDatabase('users', ['name' => $user->name, 'email' => $user->email, 'email_confirmed' => false]);
 
+        $this->visit('/')
+            ->seePageIs('/register/confirm/awaiting');
+
+        auth()->logout();
         $this->visit('/')->seePageIs('/login')
             ->type($user->email, '#email')
             ->type($user->password, '#password')
@@ -213,13 +222,14 @@ class AuthTest extends BrowserKitTest
     public function test_user_creation()
     {
         $user = factory(User::class)->make();
+        $adminRole = Role::getRole('admin');
 
         $this->asAdmin()
             ->visit('/settings/users')
             ->click('Add New User')
             ->type($user->name, '#name')
             ->type($user->email, '#email')
-            ->check('roles[admin]')
+            ->check("roles[{$adminRole->id}]")
             ->type($user->password, '#password')
             ->type($user->password, '#password-confirm')
             ->press('Save')
@@ -381,13 +391,53 @@ class AuthTest extends BrowserKitTest
             ->seePageUrlIs($page->getUrl());
     }
 
+    public function test_login_intended_redirect_does_not_redirect_to_external_pages()
+    {
+        config()->set('app.url', 'http://localhost');
+        $this->setSettings(['app-public' => true]);
+
+        $this->get('/login', ['referer' => 'https://example.com']);
+        $login = $this->post('/login', ['email' => 'admin@admin.com', 'password' => 'password']);
+
+        $login->assertRedirectedTo('http://localhost');
+    }
+
+    public function test_login_authenticates_admins_on_all_guards()
+    {
+        $this->post('/login', ['email' => 'admin@admin.com', 'password' => 'password']);
+        $this->assertTrue(auth()->check());
+        $this->assertTrue(auth('ldap')->check());
+        $this->assertTrue(auth('saml2')->check());
+    }
+
+    public function test_login_authenticates_nonadmins_on_default_guard_only()
+    {
+        $editor = $this->getEditor();
+        $editor->password = bcrypt('password');
+        $editor->save();
+
+        $this->post('/login', ['email' => $editor->email, 'password' => 'password']);
+        $this->assertTrue(auth()->check());
+        $this->assertFalse(auth('ldap')->check());
+        $this->assertFalse(auth('saml2')->check());
+    }
+
+    public function test_failed_logins_are_logged_when_message_configured()
+    {
+        $log = $this->withTestLogger();
+        config()->set(['logging.failed_login.message' => 'Failed login for %u']);
+
+        $this->post('/login', ['email' => 'admin@example.com', 'password' => 'cattreedog']);
+        $this->assertTrue($log->hasWarningThatContains('Failed login for admin@example.com'));
+
+        $this->post('/login', ['email' => 'admin@admin.com', 'password' => 'password']);
+        $this->assertFalse($log->hasWarningThatContains('Failed login for admin@admin.com'));
+    }
+
     /**
      * Perform a login
-     * @param string $email
-     * @param string $password
-     * @return $this
      */
-    protected function login($email, $password)
+    protected function login(string $email, string $password): AuthTest
     {
         return $this->visit('/login')
             ->type($email, '#email')

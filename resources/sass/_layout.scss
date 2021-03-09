@@ -49,6 +49,9 @@
   &.v-center {
     align-items: center;
   }
+  &.v-end {
+    align-items: end;
+  }
   &.no-gap {
     grid-row-gap: 0;
     grid-column-gap: 0;
@@ -118,9 +121,40 @@ body.flexbox {
   position: relative;
 }
 
+.flex-container-row {
+  display: flex;
+  flex-direction: row;
+  &.v-center {
+    align-items: center;
+  }
+}
+
+.flex-container-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-container-column.wrap, .flex-container-row.wrap {
+  flex-wrap: wrap;
+}
+
 .flex {
   min-height: 0;
   flex: 1;
+  &.fit-content {
+    flex-basis: auto;
+    flex-grow: 0;
+  }
+}
+
+.justify-flex-end {
+  justify-content: flex-end;
+}
+.justify-center {
+  justify-content: center;
+}
+.items-center {
+  align-items: center;
 }
 
 
@@ -128,20 +162,24 @@ body.flexbox {
  * Display and float utilities
  */
 .block {
-  display: block;
+  display: block !important;
   position: relative;
 }
 
 .inline {
-  display: inline;
+  display: inline !important;
 }
 
 .block.inline {
-  display: inline-block;
+  display: inline-block !important;
 }
 
 .hidden {
-  display: none;
+  display: none !important;
+}
+
+.fill-height {
+  height: 100%;
 }
 
 .float {
@@ -184,12 +222,12 @@ body.flexbox {
 /**
  * Fixes
  */
-.clearfix:before,
-.clearfix:after {
+.clearfix::before,
+.clearfix::after {
   content: " ";
   display: table;
 }
-.clearfix:after {
+.clearfix::after {
   clear: both;
 }
 
@@ -241,6 +279,7 @@ body.flexbox {
     min-height: 50vh;
     overflow-y: scroll;
     overflow-x: hidden;
+    height: 100%;
     scrollbar-width: none;
     -ms-overflow-style: none;
     &::-webkit-scrollbar {

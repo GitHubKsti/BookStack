@@ -33,6 +33,7 @@ return [
     'copy' => 'Kopyala',
     'reply' => 'Yanıtla',
     'delete' => 'Sil',
+    'delete_confirm' => 'Silmeyi Onayla',
     'search' => 'Ara',
     'search_clear' => 'Aramayı Temizle',
     'reset' => 'Sıfırla',
@@ -66,8 +67,8 @@ return [
     'profile_menu' => 'Profil Menüsü',
     'view_profile' => 'Profili Görüntüle',
     'edit_profile' => 'Profili Düzenle',
-    'dark_mode' => 'Dark Mode',
-    'light_mode' => 'Light Mode',
+    'dark_mode' => 'Gece Modu',
+    'light_mode' => 'Aydınlık Modu',
 
     // Layout tabs
     'tab_info' => 'Bilgi',

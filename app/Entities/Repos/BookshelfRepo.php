@@ -1,10 +1,12 @@
 <?php namespace BookStack\Entities\Repos;
 
-use BookStack\Entities\Book;
-use BookStack\Entities\Bookshelf;
-use BookStack\Entities\Managers\TrashCan;
+use BookStack\Actions\ActivityType;
+use BookStack\Entities\Models\Book;
+use BookStack\Entities\Models\Bookshelf;
+use BookStack\Entities\Tools\TrashCan;
 use BookStack\Exceptions\ImageUploadException;
 use BookStack\Exceptions\NotFoundException;
+use BookStack\Facades\Activity;
 use Exception;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
@@ -16,7 +18,6 @@ class BookshelfRepo
 
     /**
      * BookshelfRepo constructor.
-     * @param $baseRepo
      */
     public function __construct(BaseRepo $baseRepo)
     {
@@ -28,8 +29,10 @@ class BookshelfRepo
      */
     public function getAllPaginated(int $count = 20, string $sort = 'name', string $order = 'asc'): LengthAwarePaginator
     {
-        return Bookshelf::visible()->with('visibleBooks')
-            ->orderBy($sort, $order)->paginate($count);
+        return Bookshelf::visible()
+            ->with(['visibleBooks', 'cover'])
+            ->orderBy($sort, $order)
+            ->paginate($count);
     }
 
     /**
@@ -85,11 +88,12 @@ class BookshelfRepo
         $shelf = new Bookshelf();
         $this->baseRepo->create($shelf, $input);
         $this->updateBooks($shelf, $bookIds);
+        Activity::addForEntity($shelf, ActivityType::BOOKSHELF_CREATE);
         return $shelf;
     }
 
     /**
-     * Create a new shelf in the system.
+     * Update an existing shelf in the system using the given input.
      */
     public function update(Bookshelf $shelf, array $input, ?array $bookIds): Bookshelf
     {
@@ -99,6 +103,7 @@ class BookshelfRepo
             $this->updateBooks($shelf, $bookIds);
         }
 
+        Activity::addForEntity($shelf, ActivityType::BOOKSHELF_UPDATE);
         return $shelf;
     }
 
@@ -133,14 +138,6 @@ class BookshelfRepo
     }
 
     /**
-     * Update the permissions of a bookshelf.
-     */
-    public function updatePermissions(Bookshelf $shelf, bool $restricted, Collection $permissions = null)
-    {
-        $this->baseRepo->updatePermissions($shelf, $restricted, $permissions);
-    }
-
-    /**
      * Copy down the permissions of the given shelf to all child books.
      */
     public function copyDownPermissions(Bookshelf $shelf, $checkUserPermissions = true): int
@@ -172,6 +169,8 @@ class BookshelfRepo
     public function destroy(Bookshelf $shelf)
     {
         $trashCan = new TrashCan();
-        $trashCan->destroyShelf($shelf);
+        $trashCan->softDestroyShelf($shelf);
+        Activity::addForEntity($shelf, ActivityType::BOOKSHELF_DELETE);
+        $trashCan->autoClearOld();
     }
 }

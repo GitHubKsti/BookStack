@@ -8,7 +8,7 @@
 
 @section('content')
 
-    <div class="flex-fill flex">
+    <div class="flex-fill flex fill-height">
         <form action="{{ $page->getUrl() }}" autocomplete="off" data-page-id="{{ $page->id }}" method="POST" class="flex flex-fill">
             {{ csrf_field() }}
 
@@ -20,8 +20,7 @@
         </form>
     </div>
     
-    @include('components.image-manager', ['imageType' => 'gallery', 'uploaded_to' => $page->id])
+    @include('components.image-manager', ['uploaded_to' => $page->id])
     @include('components.code-editor')
     @include('components.entity-selector-popup')
-
 @stop

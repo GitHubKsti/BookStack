@@ -1,7 +1,7 @@
 <?php namespace BookStack\Uploads;
 
 use BookStack\Auth\Permissions\PermissionService;
-use BookStack\Entities\Page;
+use BookStack\Entities\Models\Page;
 use BookStack\Exceptions\ImageUploadException;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
@@ -112,7 +112,7 @@ class ImageRepo
                 if ($filterType === 'page') {
                     $query->where('uploaded_to', '=', $contextPage->id);
                 } elseif ($filterType === 'book') {
-                    $validPageIds = $contextPage->book->pages()->get(['id'])->pluck('id')->toArray();
+                    $validPageIds = $contextPage->book->pages()->visible()->get(['id'])->pluck('id')->toArray();
                     $query->whereIn('uploaded_to', $validPageIds);
                 }
             };
@@ -185,7 +185,7 @@ class ImageRepo
      * Load thumbnails onto an image object.
      * @throws Exception
      */
-    protected function loadThumbs(Image $image)
+    public function loadThumbs(Image $image)
     {
         $image->thumbs = [
             'gallery' => $this->getThumbnail($image, 150, 150, false),
@@ -218,5 +218,21 @@ class ImageRepo
         } catch (Exception $exception) {
             return null;
         }
+    }
+
+    /**
+     * Get the user visible pages using the given image.
+     */
+    public function getPagesUsingImage(Image $image): array
+    {
+        $pages = Page::visible()
+            ->where('html', 'like', '%' . $image->url . '%')
+            ->get(['id', 'name', 'slug', 'book_id']);
+
+        foreach ($pages as $page) {
+            $page->url = $page->getUrl();
+        }
+
+        return $pages->all();
     }
 }
