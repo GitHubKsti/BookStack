@@ -19,7 +19,7 @@ class Dropzone {
             addRemoveLinks: true,
             dictRemoveFile: this.removeMessage,
             timeout: Number(window.uploadTimeout) || 60000,
-            maxFilesize: Number(window.uploadLimit) || 256,
+            maxFilesize: 512 /*Number(window.uploadLimit) || 256*/,
             url: this.url,
             withCredentials: true,
             init() {
