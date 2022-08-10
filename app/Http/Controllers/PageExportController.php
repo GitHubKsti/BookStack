@@ -39,6 +39,15 @@ class PageExportController extends Controller
         return $this->download()->directly($pdfContent, $pageSlug . '.pdf');
     }
 
+    public function pdfWithLinkedPages(string $bookSlug, string $pageSlug)
+    {
+        $page = $this->pageRepo->getBySlug($bookSlug, $pageSlug);
+        $page->html = (new PageContent($page))->render();
+        $pdfContent = $this->exportFormatter->pageToPdfWithLinkedPages($page);
+
+        return $this->download()->directly($pdfContent, $pageSlug . '.pdf');
+    }
+
     /**
      * Export a page to a self-contained HTML file.
      *

@@ -87,6 +87,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/books/{bookSlug}/sort', [BookSortController::class, 'update']);
     Route::get('/books/{bookSlug}/export/html', [BookExportController::class, 'html']);
     Route::get('/books/{bookSlug}/export/pdf', [BookExportController::class, 'pdf']);
+    Route::get('/books/{bookSlug}/export/pdf_with_linked_pages', [BookExportController::class, 'pdfWithLinkedPages']);
     Route::get('/books/{bookSlug}/export/markdown', [BookExportController::class, 'markdown']);
     Route::get('/books/{bookSlug}/export/zip', [BookExportController::class, 'zip']);
     Route::get('/books/{bookSlug}/export/plaintext', [BookExportController::class, 'plainText']);
@@ -98,6 +99,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/books/{bookSlug}/draft/{pageId}', [PageController::class, 'store']);
     Route::get('/books/{bookSlug}/page/{pageSlug}', [PageController::class, 'show']);
     Route::get('/books/{bookSlug}/page/{pageSlug}/export/pdf', [PageExportController::class, 'pdf']);
+    Route::get('/books/{bookSlug}/page/{pageSlug}/export/pdf_with_linked_pages', [PageExportController::class, 'pdfWithLinkedPages']);
     Route::get('/books/{bookSlug}/page/{pageSlug}/export/html', [PageExportController::class, 'html']);
     Route::get('/books/{bookSlug}/page/{pageSlug}/export/markdown', [PageExportController::class, 'markdown']);
     Route::get('/books/{bookSlug}/page/{pageSlug}/export/plaintext', [PageExportController::class, 'plainText']);
@@ -136,6 +138,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/books/{bookSlug}/chapter/{chapterSlug}/convert-to-book', [ChapterController::class, 'convertToBook']);
     Route::get('/books/{bookSlug}/chapter/{chapterSlug}/permissions', [ChapterController::class, 'showPermissions']);
     Route::get('/books/{bookSlug}/chapter/{chapterSlug}/export/pdf', [ChapterExportController::class, 'pdf']);
+    Route::get('/books/{bookSlug}/chapter/{chapterSlug}/export/pdf_with_linked_pages', [ChapterExportController::class, 'pdfWithLinkedPages']);
     Route::get('/books/{bookSlug}/chapter/{chapterSlug}/export/html', [ChapterExportController::class, 'html']);
     Route::get('/books/{bookSlug}/chapter/{chapterSlug}/export/markdown', [ChapterExportController::class, 'markdown']);
     Route::get('/books/{bookSlug}/chapter/{chapterSlug}/export/plaintext', [ChapterExportController::class, 'plainText']);
