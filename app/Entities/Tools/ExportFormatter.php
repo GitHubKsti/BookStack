@@ -8,6 +8,7 @@ use BookStack\Entities\Models\Page;
 use BookStack\Entities\Tools\Markdown\HtmlToMarkdown;
 use BookStack\Uploads\ImageService;
 use BookStack\Util\CspService;
+use Illuminate\Database\Eloquent\Collection;
 use BookStack\Util\HtmlDocument;
 use DOMElement;
 use Exception;
@@ -101,13 +102,60 @@ class ExportFormatter
     }
 
     /**
+     * Convert a page to a PDF file.
+     *
+     * @throws Throwable
+     */
+    public function pageToPdfWithLinkedPages(Page $page)
+    {
+        $pages = new Collection();
+        $pages->add($page);
+        $subPages = $page->getLocalLinkedPages();
+        //merge, concat etc. are not working here
+        foreach($subPages as $subPage)
+        {
+            $pages->add($subPage);
+        }
+        Page::replaceLinksToRelativePDFLinks($pages, 1);
+
+        $html = view('exports.chapter', [
+            'chapter' => new Chapter(),
+            'pages'   => $pages,
+            'format' => 'pdf',
+            'engine' => $this->pdfGenerator->getActiveEngine(),
+        ])->render();
+
+        return $this->htmlToPdf($html);
+    }
+
+    /**
      * Convert a chapter to a PDF file.
      *
      * @throws Throwable
      */
-    public function chapterToPdf(Chapter $chapter): string
+    public function chapterToPdf(Chapter $chapter, bool $withLinkedPages=false):string
     {
         $pages = $chapter->getVisiblePages();
+        $addedPriority = 10000;
+
+        if($withLinkedPages)
+        {
+            foreach($pages as $page)
+            {
+                $subPages = $page->getLocalLinkedPages();
+                foreach($subPages as $subPage)
+                {
+                    #only add if its not present yet
+                    if(!$pages->contains($subPage))
+                    {
+                        $subPage->priority = $addedPriority++;
+                        $pages->add($subPage);
+                    }
+                }
+            }
+            $pages = $pages->unique();
+            Page::replaceLinksToRelativePDFLinks($pages);
+        }
         $pages->each(function ($page) {
             $page->html = (new PageContent($page))->render();
         });
@@ -128,9 +176,15 @@ class ExportFormatter
      *
      * @throws Throwable
      */
-    public function bookToPdf(Book $book): string
+    public function bookToPdf(Book $book, bool $withLinkedPages=false): string
     {
-        $bookTree = (new BookContents($book))->getTree(false, true);
+        $bookTree = (new BookContents($book))->getTree(false, true, $withLinkedPages);
+        $replacedValues = new Collection();
+        if($withLinkedPages)
+        {
+            Page::replaceLinksToRelativePDFLinks($bookTree, 0, $replacedValues);
+        }
+        $bookTree = $bookTree->sortBy('priority');
         $html = view('exports.book', [
             'book'         => $book,
             'bookChildren' => $bookTree,
@@ -138,6 +192,15 @@ class ExportFormatter
             'engine'       => $this->pdfGenerator->getActiveEngine(),
             'locale'       => user()->getLocale(),
         ])->render();
+        //only for books with chapters because the chapter pages are dynamically get from database
+        if ($book->chapters()->count() > 0)
+        {
+            foreach($replacedValues->keys() as $key)
+            {
+                $value = $replacedValues[$key];
+                $html = str_replace($key, $value, $html);
+            }
+        }
 
         return $this->htmlToPdf($html);
     }

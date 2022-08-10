@@ -5,8 +5,9 @@ namespace BookStack\Entities\Models;
 use BookStack\Entities\Tools\PageContent;
 use BookStack\Permissions\PermissionApplicator;
 use BookStack\Uploads\Attachment;
+use http\Client\Request;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -154,4 +155,77 @@ class Page extends BookChild
     {
         return static::visible()->whereSlugs($bookSlug, $pageSlug)->firstOrFail();
     }
+
+    /**
+     * Collect all pages linked on this page
+     * @return Collection of local linked pages
+     */
+    public function getLocalLinkedPages() : Collection
+    {
+        $html = $this->html;
+        $regexp = "<a\s[^>]*href=(\"??)([^\" >]*?)\\1[^>]*>(.*)<\/a>";
+        $pages = new Collection();
+
+        if(preg_match_all("/$regexp/siU", $html, $matches)) {
+            foreach($matches[2] as $match)
+            {
+                $url = explode('/', $match);
+                $lastPart = array_pop($url);
+                $subPages = Page::visible()
+                    ->where('slug', 'like', $lastPart)
+                    ->get(['id', 'name', 'slug', 'book_id']);
+                if($subPages->count() > 0)
+                {
+                    foreach($subPages as $subPage)
+                    {
+                        $pages = $pages->add($subPage)->unique();
+                    }
+                }
+            }
+        }
+        return $pages;
+    }
+
+    static public function replaceLinksToRelativePDFLinks(Collection $pages, int $offset=0, Collection $replacedValues=null)
+    {
+        $tempPages = new Collection($pages);
+        foreach($tempPages as $page)
+        {
+            if($page instanceof Chapter)
+            {
+                foreach($page->getVisiblePages() as $page)
+                {
+                    $tempPages->add($page);
+                }
+            }
+        }
+        foreach($tempPages->keys() as $key)
+        {
+            $page = $tempPages[$key];
+            $html = $page->html;
+            $regexp = "<a\s[^>]*href=(\"??)([^\" >]*?)\\1[^>]*>(.*)<\/a>";
+            if(preg_match_all("/$regexp/siU", $html, $matches)) {
+                foreach($matches[2] as $match)
+                {
+                    $url = explode('/', $match);
+                    $lastPart = array_pop($url);
+                    foreach($tempPages->keys() as $key)
+                    {
+                        $subPage = $tempPages[$key];
+                        if($subPage->slug == $lastPart)
+                        {
+                            $replaceString = "#page-" . $subPage->id;
+                            if($replacedValues)
+                            {
+                                $replacedValues[$match] = $replaceString;
+                            }
+                            $page->html = str_replace($match, $replaceString, $page->html);
+                        }
+                    }
+                }
+            }
+
+        }
+    }
 }
+

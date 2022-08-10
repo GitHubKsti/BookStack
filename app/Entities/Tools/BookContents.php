@@ -35,9 +35,27 @@ class BookContents
     /**
      * Get the contents as a sorted collection tree.
      */
-    public function getTree(bool $showDrafts = false, bool $renderPages = false): Collection
+    public function getTree(bool $showDrafts = false, bool $renderPages = false, bool $renderLinkedPages = false): Collection
     {
         $pages = $this->getPages($showDrafts, $renderPages);
+        $addedPriority = 10000;
+        if($renderLinkedPages)
+        {
+            foreach($pages as $page)
+            {
+                $subPages = $page->getLocalLinkedPages();
+                foreach($subPages as $subPage)
+                {
+                    #only add if its not present yet
+                    if(!$pages->contains($subPage))
+                    {
+                        $subPage->priority = $addedPriority++;
+                        $pages->add($subPage);
+                    }
+                }
+            }
+        }
+        $pages = $pages->unique();
         $chapters = Chapter::visible()->where('book_id', '=', $this->book->id)->get();
         $all = collect()->concat($pages)->concat($chapters);
         $chapterMap = $chapters->keyBy('id');

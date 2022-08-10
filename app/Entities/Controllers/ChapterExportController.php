@@ -37,6 +37,14 @@ class ChapterExportController extends Controller
         return $this->download()->directly($pdfContent, $chapterSlug . '.pdf');
     }
 
+    public function pdfWithLinkedPages(string $bookSlug, string $chapterSlug)
+    {
+        $chapter = $this->chapterRepo->getBySlug($bookSlug, $chapterSlug);
+        $pdfContent = $this->exportFormatter->chapterToPdf($chapter, true);
+
+        return $this->download()->directly($pdfContent, $chapterSlug . '.pdf');
+    }
+
     /**
      * Export a chapter to a self-contained HTML file.
      *

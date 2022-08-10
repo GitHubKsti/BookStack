@@ -35,6 +35,14 @@ class BookExportController extends Controller
         return $this->download()->directly($pdfContent, $bookSlug . '.pdf');
     }
 
+    public function pdfWithLinkedPages(string $bookSlug)
+    {
+        $book = $this->bookRepo->getBySlug($bookSlug);
+        $pdfContent = $this->exportFormatter->bookToPdf($book, true);
+
+        return $this->download()->directly($pdfContent, $bookSlug . '.pdf');
+    }
+
     /**
      * Export a book as a contained HTML file.
      *

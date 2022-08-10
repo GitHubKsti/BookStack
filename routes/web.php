@@ -73,6 +73,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/books/{slug}/references', [ReferenceController::class, 'book']);
     Route::get('/books/{bookSlug}/export/html', [EntityControllers\BookExportController::class, 'html']);
     Route::get('/books/{bookSlug}/export/pdf', [EntityControllers\BookExportController::class, 'pdf']);
+    Route::get('/books/{bookSlug}/export/pdf_with_linked_pages', [EntityControllers\BookExportController::class, 'pdfWithLinkedPages']);
     Route::get('/books/{bookSlug}/export/markdown', [EntityControllers\BookExportController::class, 'markdown']);
     Route::get('/books/{bookSlug}/export/zip', [EntityControllers\BookExportController::class, 'zip']);
     Route::get('/books/{bookSlug}/export/plaintext', [EntityControllers\BookExportController::class, 'plainText']);
@@ -84,6 +85,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/books/{bookSlug}/draft/{pageId}', [EntityControllers\PageController::class, 'store']);
     Route::get('/books/{bookSlug}/page/{pageSlug}', [EntityControllers\PageController::class, 'show']);
     Route::get('/books/{bookSlug}/page/{pageSlug}/export/pdf', [EntityControllers\PageExportController::class, 'pdf']);
+    Route::get('/books/{bookSlug}/page/{pageSlug}/export/pdf_with_linked_pages', [EntityControllers\PageExportController::class, 'pdfWithLinkedPages']);
     Route::get('/books/{bookSlug}/page/{pageSlug}/export/html', [EntityControllers\PageExportController::class, 'html']);
     Route::get('/books/{bookSlug}/page/{pageSlug}/export/markdown', [EntityControllers\PageExportController::class, 'markdown']);
     Route::get('/books/{bookSlug}/page/{pageSlug}/export/plaintext', [EntityControllers\PageExportController::class, 'plainText']);
@@ -124,6 +126,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/books/{bookSlug}/chapter/{chapterSlug}/convert-to-book', [EntityControllers\ChapterController::class, 'convertToBook']);
     Route::get('/books/{bookSlug}/chapter/{chapterSlug}/permissions', [PermissionsController::class, 'showForChapter']);
     Route::get('/books/{bookSlug}/chapter/{chapterSlug}/export/pdf', [EntityControllers\ChapterExportController::class, 'pdf']);
+    Route::get('/books/{bookSlug}/chapter/{chapterSlug}/export/pdf_with_linked_pages', [EntityControllers\ChapterExportController::class, 'pdfWithLinkedPages']);
     Route::get('/books/{bookSlug}/chapter/{chapterSlug}/export/html', [EntityControllers\ChapterExportController::class, 'html']);
     Route::get('/books/{bookSlug}/chapter/{chapterSlug}/export/markdown', [EntityControllers\ChapterExportController::class, 'markdown']);
     Route::get('/books/{bookSlug}/chapter/{chapterSlug}/export/plaintext', [EntityControllers\ChapterExportController::class, 'plainText']);

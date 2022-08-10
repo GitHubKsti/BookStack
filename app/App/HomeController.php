@@ -47,7 +47,7 @@ class HomeController extends Controller
             ->select(Page::$listAttributes)
             ->get();
 
-        $homepageOptions = ['default', 'books', 'bookshelves', 'page'];
+        $homepageOptions = ['default', 'user_dependend', 'books', 'bookshelves', 'page'];
         $homepageOption = setting('app-homepage-type', 'default');
         if (!in_array($homepageOption, $homepageOptions)) {
             $homepageOption = 'default';
@@ -62,7 +62,7 @@ class HomeController extends Controller
         ];
 
         // Add required list ordering & sorting for books & shelves views.
-        if ($homepageOption === 'bookshelves' || $homepageOption === 'books') {
+        if ($homepageOption === 'bookshelves' || $homepageOption === 'books' || $homepageOption === 'user_dependend') {
             $key = $homepageOption;
             $view = setting()->getForCurrentUser($key . '_view_type');
             $listOptions = SimpleListOptions::fromRequest($request, $key)->withSortOptions([
@@ -100,6 +100,13 @@ class HomeController extends Controller
             $customHomepage->html = $pageContent->render(false);
 
             return view('home.specific-page', array_merge($commonData, ['customHomepage' => $customHomepage]));
+        }
+
+        if ($homepageOption === 'user_dependend')
+        {
+            $shelves = app(BookshelfRepo::class)->getAllPaginated(18, $commonData['sort'], $commonData['order']);
+            $data = array_merge($commonData, ['shelves' => $shelves]);
+            return view('home.user_dependend', $data);
         }
 
         return view('home.default', $commonData);
