@@ -14,7 +14,7 @@ button {
   display: inline-block;
   font-weight: 400;
   outline: 0;
-  border-radius: 2px;
+  border-radius: 4px;
   cursor: pointer;
   transition: background-color ease-in-out 120ms,
     filter ease-in-out 120ms,
@@ -22,10 +22,8 @@ button {
   box-shadow: none;
   background-color: var(--color-primary);
   color: #FFF;
-  text-transform: uppercase;
   border: 1px solid var(--color-primary);
   vertical-align: top;
-  @include lightDark(filter, none, saturate(0.8) brightness(0.8));
   &:hover, &:focus, &:active {
     background-color: var(--color-primary);
     text-decoration: none;
@@ -48,14 +46,16 @@ button {
 
 .button.outline {
   background-color: transparent;
-  @include lightDark(color, #666, #aaa);
+  @include lightDark(color, #666, #AAA);
   fill: currentColor;
-  border: 1px solid #CCC;
+  border: 1px solid;
+  @include lightDark(border-color, #CCC, #666);
   &:hover, &:focus, &:active {
+    @include lightDark(color, #444, #BBB);
     border: 1px solid #CCC;
-    box-shadow: none;
+    box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.1);
     background-color: #F2F2F2;
-    @include lightDark(background-color, #f2f2f2, #555);
+    @include lightDark(background-color, #f8f8f8, #444);
     filter: none;
   }
   &:active {
@@ -84,10 +84,7 @@ button {
   user-select: none;
   font-size: 0.75rem;
   line-height: 1.4em;
-  color: var(--color-primary);
-  @include whenDark {
-    color: #AAA;
-  }
+  color: var(--color-link);
   &:active {
     outline: 0;
   }
@@ -95,8 +92,8 @@ button {
     text-decoration: none;
   }
   &:hover, &:focus {
-    color: var(--color-primary);
-    fill: var(--color-primary);
+    color: var(--color-link);
+    fill: var(--color-link);
   }
 }
 .text-button.hover-underline:hover {
@@ -109,10 +106,21 @@ button {
   display: block;
 }
 
-.button.icon {
+.button.icon, .icon-button, .text-button.icon {
   .svg-icon {
     margin-inline-end: 0;
   }
+}
+
+.icon-button {
+  text-align: center;
+  border: 1px solid transparent;
+}
+.icon-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  @include lightDark(border-color, #DDD, #444);
+  cursor: pointer;
 }
 
 .button.svg {

@@ -4,14 +4,12 @@ namespace Tests\Entity;
 
 use BookStack\Entities\Models\Book;
 use BookStack\Entities\Models\BookChild;
+use BookStack\Entities\Models\Bookshelf;
 use BookStack\Entities\Repos\BookRepo;
 use Tests\TestCase;
-use Tests\Uploads\UsesImages;
 
 class BookTest extends TestCase
 {
-    use UsesImages;
-
     public function test_create()
     {
         $book = Book::factory()->make([
@@ -24,7 +22,7 @@ class BookTest extends TestCase
         $resp = $this->get('/create-book');
         $this->withHtml($resp)->assertElementContains('form[action="' . url('/books') . '"][method="POST"]', 'Save Book');
 
-        $resp = $this->post('/books', $book->only('name', 'description'));
+        $resp = $this->post('/books', $book->only('name', 'description_html'));
         $resp->assertRedirect('/books/my-first-book');
 
         $resp = $this->get('/books/my-first-book');
@@ -38,8 +36,8 @@ class BookTest extends TestCase
             'name' => 'My First Book',
         ]);
 
-        $this->asEditor()->post('/books', $book->only('name', 'description'));
-        $this->asEditor()->post('/books', $book->only('name', 'description'));
+        $this->asEditor()->post('/books', $book->only('name', 'description_html'));
+        $this->asEditor()->post('/books', $book->only('name', 'description_html'));
 
         $books = Book::query()->where('name', '=', $book->name)
             ->orderBy('id', 'desc')
@@ -54,9 +52,9 @@ class BookTest extends TestCase
     {
         // Cheeky initial update to refresh slug
         $this->asEditor()->post('books', [
-            'name'        => 'My book with tags',
-            'description' => 'A book with tags',
-            'tags'        => [
+            'name'             => 'My book with tags',
+            'description_html' => '<p>A book with tags</p>',
+            'tags'             => [
                 [
                     'name'  => 'Category',
                     'value' => 'Donkey Content',
@@ -79,32 +77,30 @@ class BookTest extends TestCase
 
     public function test_update()
     {
-        /** @var Book $book */
-        $book = Book::query()->first();
+        $book = $this->entities->book();
         // Cheeky initial update to refresh slug
-        $this->asEditor()->put($book->getUrl(), ['name' => $book->name . '5', 'description' => $book->description]);
+        $this->asEditor()->put($book->getUrl(), ['name' => $book->name . '5', 'description_html' => $book->description_html]);
         $book->refresh();
 
         $newName = $book->name . ' Updated';
-        $newDesc = $book->description . ' with more content';
+        $newDesc = $book->description_html . '<p>with more content</p>';
 
         $resp = $this->get($book->getUrl('/edit'));
         $resp->assertSee($book->name);
-        $resp->assertSee($book->description);
+        $resp->assertSee($book->description_html);
         $this->withHtml($resp)->assertElementContains('form[action="' . $book->getUrl() . '"]', 'Save Book');
 
-        $resp = $this->put($book->getUrl(), ['name' => $newName, 'description' => $newDesc]);
+        $resp = $this->put($book->getUrl(), ['name' => $newName, 'description_html' => $newDesc]);
         $resp->assertRedirect($book->getUrl() . '-updated');
 
         $resp = $this->get($book->getUrl() . '-updated');
         $resp->assertSee($newName);
-        $resp->assertSee($newDesc);
+        $resp->assertSee($newDesc, false);
     }
 
     public function test_update_sets_tags()
     {
-        /** @var Book $book */
-        $book = Book::query()->first();
+        $book = $this->entities->book();
 
         $this->assertEquals(0, $book->tags()->count());
 
@@ -166,15 +162,14 @@ class BookTest extends TestCase
 
     public function test_cancel_on_edit_book_page_leads_back_to_book()
     {
-        /** @var Book $book */
-        $book = Book::query()->first();
+        $book = $this->entities->book();
         $resp = $this->asEditor()->get($book->getUrl('/edit'));
         $this->withHtml($resp)->assertElementContains('form a[href="' . $book->getUrl() . '"]', 'Cancel');
     }
 
     public function test_next_previous_navigation_controls_show_within_book_content()
     {
-        $book = Book::query()->first();
+        $book = $this->entities->book();
         $chapter = $book->chapters->first();
 
         $resp = $this->asEditor()->get($chapter->getUrl());
@@ -189,7 +184,7 @@ class BookTest extends TestCase
 
     public function test_recently_viewed_books_updates_as_expected()
     {
-        $books = Book::all()->take(2);
+        $books = Book::take(2)->get();
 
         $resp = $this->asAdmin()->get('/books');
         $this->withHtml($resp)->assertElementNotContains('#recents', $books[0]->name)
@@ -205,7 +200,7 @@ class BookTest extends TestCase
 
     public function test_popular_books_updates_upon_visits()
     {
-        $books = Book::all()->take(2);
+        $books = Book::take(2)->get();
 
         $resp = $this->asAdmin()->get('/books');
         $this->withHtml($resp)->assertElementNotContains('#popular', $books[0]->name)
@@ -223,35 +218,35 @@ class BookTest extends TestCase
     public function test_books_view_shows_view_toggle_option()
     {
         /** @var Book $book */
-        $editor = $this->getEditor();
+        $editor = $this->users->editor();
         setting()->putUser($editor, 'books_view_type', 'list');
 
         $resp = $this->actingAs($editor)->get('/books');
-        $this->withHtml($resp)->assertElementContains('form[action$="/settings/users/' . $editor->id . '/switch-books-view"]', 'Grid View');
-        $this->withHtml($resp)->assertElementExists('input[name="view_type"][value="grid"]');
+        $this->withHtml($resp)->assertElementContains('form[action$="/preferences/change-view/books"]', 'Grid View');
+        $this->withHtml($resp)->assertElementExists('button[name="view"][value="grid"]');
 
-        $resp = $this->patch("/settings/users/{$editor->id}/switch-books-view", ['view_type' => 'grid']);
+        $resp = $this->patch("/preferences/change-view/books", ['view' => 'grid']);
         $resp->assertRedirect();
         $this->assertEquals('grid', setting()->getUser($editor, 'books_view_type'));
 
         $resp = $this->actingAs($editor)->get('/books');
-        $this->withHtml($resp)->assertElementContains('form[action$="/settings/users/' . $editor->id . '/switch-books-view"]', 'List View');
-        $this->withHtml($resp)->assertElementExists('input[name="view_type"][value="list"]');
+        $this->withHtml($resp)->assertElementContains('form[action$="/preferences/change-view/books"]', 'List View');
+        $this->withHtml($resp)->assertElementExists('button[name="view"][value="list"]');
 
-        $resp = $this->patch("/settings/users/{$editor->id}/switch-books-view", ['view_type' => 'list']);
+        $resp = $this->patch("/preferences/change-view/books", ['view_type' => 'list']);
         $resp->assertRedirect();
         $this->assertEquals('list', setting()->getUser($editor, 'books_view_type'));
     }
 
     public function test_slug_multi_byte_url_safe()
     {
-        $book = $this->newBook([
+        $book = $this->entities->newBook([
             'name' => 'информация',
         ]);
 
-        $this->assertEquals('informaciya', $book->slug);
+        $this->assertEquals('informaciia', $book->slug);
 
-        $book = $this->newBook([
+        $book = $this->entities->newBook([
             'name' => '¿Qué?',
         ]);
 
@@ -260,17 +255,43 @@ class BookTest extends TestCase
 
     public function test_slug_format()
     {
-        $book = $this->newBook([
+        $book = $this->entities->newBook([
             'name' => 'PartA / PartB / PartC',
         ]);
 
         $this->assertEquals('parta-partb-partc', $book->slug);
     }
 
+    public function test_description_limited_to_specific_html()
+    {
+        $book = $this->entities->book();
+
+        $input = '<h1>Test</h1><p id="abc" href="beans">Content<a href="#cat" data-a="b">a</a><section>Hello</section></p>';
+        $expected = '<p>Content<a href="#cat">a</a></p>';
+
+        $this->asEditor()->put($book->getUrl(), [
+            'name' => $book->name,
+            'description_html' => $input
+        ]);
+
+        $book->refresh();
+        $this->assertEquals($expected, $book->description_html);
+    }
+
+    public function test_show_view_displays_description_if_no_description_html_set()
+    {
+        $book = $this->entities->book();
+        $book->description_html = '';
+        $book->description = "My great\ndescription\n\nwith newlines";
+        $book->save();
+
+        $resp = $this->asEditor()->get($book->getUrl());
+        $resp->assertSee("<p>My great<br>\ndescription<br>\n<br>\nwith newlines</p>", false);
+    }
+
     public function test_show_view_has_copy_button()
     {
-        /** @var Book $book */
-        $book = Book::query()->first();
+        $book = $this->entities->book();
         $resp = $this->asEditor()->get($book->getUrl());
 
         $this->withHtml($resp)->assertElementContains("a[href=\"{$book->getUrl('/copy')}\"]", 'Copy');
@@ -278,8 +299,7 @@ class BookTest extends TestCase
 
     public function test_copy_view()
     {
-        /** @var Book $book */
-        $book = Book::query()->first();
+        $book = $this->entities->book();
         $resp = $this->asEditor()->get($book->getUrl('/copy'));
 
         $resp->assertOk();
@@ -298,6 +318,8 @@ class BookTest extends TestCase
 
         $resp->assertRedirect($copy->getUrl());
         $this->assertEquals($book->getDirectChildren()->count(), $copy->getDirectChildren()->count());
+
+        $this->get($copy->getUrl())->assertSee($book->description_html, false);
     }
 
     public function test_copy_does_not_copy_non_visible_content()
@@ -308,9 +330,7 @@ class BookTest extends TestCase
         // Hide child content
         /** @var BookChild $page */
         foreach ($book->getDirectChildren() as $child) {
-            $child->restricted = true;
-            $child->save();
-            $this->regenEntityPermissions($child);
+            $this->permissions->setEntityPermissions($child, [], []);
         }
 
         $this->asEditor()->post($book->getUrl('/copy'), ['name' => 'My copy book']);
@@ -324,8 +344,8 @@ class BookTest extends TestCase
     {
         /** @var Book $book */
         $book = Book::query()->whereHas('chapters')->whereHas('directPages')->whereHas('chapters')->first();
-        $viewer = $this->getViewer();
-        $this->giveUserPermissions($viewer, ['book-create-all']);
+        $viewer = $this->users->viewer();
+        $this->permissions->grantUserRolePermissions($viewer, ['book-create-all']);
 
         $this->actingAs($viewer)->post($book->getUrl('/copy'), ['name' => 'My copy book']);
         /** @var Book $copy */
@@ -337,18 +357,39 @@ class BookTest extends TestCase
 
     public function test_copy_clones_cover_image_if_existing()
     {
-        /** @var Book $book */
-        $book = Book::query()->first();
+        $book = $this->entities->book();
         $bookRepo = $this->app->make(BookRepo::class);
-        $coverImageFile = $this->getTestImage('cover.png');
+        $coverImageFile = $this->files->uploadedImage('cover.png');
         $bookRepo->updateCoverImage($book, $coverImageFile);
 
         $this->asEditor()->post($book->getUrl('/copy'), ['name' => 'My copy book']);
-
         /** @var Book $copy */
         $copy = Book::query()->where('name', '=', 'My copy book')->first();
 
         $this->assertNotNull($copy->cover);
         $this->assertNotEquals($book->cover->id, $copy->cover->id);
+    }
+
+    public function test_copy_adds_book_to_shelves_if_edit_permissions_allows()
+    {
+        /** @var Bookshelf $shelfA */
+        /** @var Bookshelf $shelfB */
+        [$shelfA, $shelfB] = Bookshelf::query()->take(2)->get();
+        $book = $this->entities->book();
+
+        $shelfA->appendBook($book);
+        $shelfB->appendBook($book);
+
+        $viewer = $this->users->viewer();
+        $this->permissions->grantUserRolePermissions($viewer, ['book-update-all', 'book-create-all', 'bookshelf-update-all']);
+        $this->permissions->setEntityPermissions($shelfB);
+
+
+        $this->asEditor()->post($book->getUrl('/copy'), ['name' => 'My copy book']);
+        /** @var Book $copy */
+        $copy = Book::query()->where('name', '=', 'My copy book')->first();
+
+        $this->assertTrue($copy->shelves()->where('id', '=', $shelfA->id)->exists());
+        $this->assertFalse($copy->shelves()->where('id', '=', $shelfB->id)->exists());
     }
 }

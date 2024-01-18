@@ -2,8 +2,8 @@
 
 namespace BookStack\Entities\Models;
 
-use BookStack\Auth\Permissions\PermissionApplicator;
 use BookStack\Entities\Tools\PageContent;
+use BookStack\Permissions\PermissionApplicator;
 use BookStack\Uploads\Attachment;
 use http\Client\Request;
 use Illuminate\Database\Eloquent\Builder;
@@ -38,9 +38,10 @@ class Page extends BookChild
 
     protected $fillable = ['name', 'priority'];
 
-    public $textField = 'text';
+    public string $textField = 'text';
+    public string $htmlField = 'html';
 
-    protected $hidden = ['html', 'markdown', 'text', 'restricted', 'pivot', 'deleted_at'];
+    protected $hidden = ['html', 'markdown', 'text', 'pivot', 'deleted_at'];
 
     protected $casts = [
         'draft'    => 'boolean',
@@ -89,8 +90,6 @@ class Page extends BookChild
 
     /**
      * Get the current revision for the page if existing.
-     *
-     * @return PageRevision|null
      */
     public function currentRevision(): HasOne
     {
@@ -142,6 +141,7 @@ class Page extends BookChild
     {
         $refreshed = $this->refresh()->unsetRelations()->load(['tags', 'createdBy', 'updatedBy', 'ownedBy']);
         $refreshed->setHidden(array_diff($refreshed->getHidden(), ['html', 'markdown']));
+        $refreshed->setAttribute('raw_html', $refreshed->html);
         $refreshed->html = (new PageContent($refreshed))->render();
 
         return $refreshed;
@@ -217,4 +217,16 @@ class Page extends BookChild
 
         }
     }
+
+    /**
+     * Get a visible page by its book and page slugs.
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public static function getBySlugs(string $bookSlug, string $pageSlug): self
+    {
+        return static::visible()->whereSlugs($bookSlug, $pageSlug)->firstOrFail();
+    }
+
 }
+
+

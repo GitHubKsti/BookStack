@@ -1,22 +1,22 @@
 @extends('layouts.tri')
 
 @section('body')
-    @include('shelves.parts.list', ['shelves' => $shelves, 'view' => $view])
+    @include('shelves.parts.list', ['shelves' => $shelves, 'view' => $view, 'listOptions' => $listOptions])
 @stop
 
 @section('right')
 
     <div class="actions mb-xl">
         <h5>{{ trans('common.actions') }}</h5>
-        <div class="icon-list text-primary">
+        <div class="icon-list text-link">
             @if(userCan('bookshelf-create-all'))
-                <a href="{{ url("/create-shelf") }}" class="icon-list-item">
+                <a href="{{ url("/create-shelf") }}" data-shortcut="new" class="icon-list-item">
                     <span>@icon('add')</span>
                     <span>{{ trans('entities.shelves_new_action') }}</span>
                 </a>
             @endif
 
-            @include('entities.view-toggle', ['view' => $view, 'type' => 'shelves'])
+            @include('entities.view-toggle', ['view' => $view, 'type' => 'bookshelves'])
 
             <a href="{{ url('/tags') }}" class="icon-list-item">
                 <span>@icon('tag')</span>
@@ -40,7 +40,7 @@
         @if(count($popular) > 0)
             @include('entities.list', ['entities' => $popular, 'style' => 'compact'])
         @else
-            <div class="text-muted">{{ trans('entities.shelves_popular_empty') }}</div>
+            <p class="text-muted pb-l mb-none">{{ trans('entities.shelves_popular_empty') }}</p>
         @endif
     </div>
 
@@ -49,7 +49,7 @@
         @if(count($new) > 0)
             @include('entities.list', ['entities' => $new, 'style' => 'compact'])
         @else
-            <div class="text-muted">{{ trans('entities.shelves_new_empty') }}</div>
+            <p class="text-muted pb-l mb-none">{{ trans('entities.shelves_new_empty') }}</p>
         @endif
     </div>
 @stop
