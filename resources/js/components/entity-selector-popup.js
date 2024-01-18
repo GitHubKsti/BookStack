@@ -1,14 +1,10 @@
-/**
- * Entity Selector Popup
- * @extends {Component}
- */
-class EntitySelectorPopup {
+import {Component} from './component';
+
+export class EntitySelectorPopup extends Component {
 
     setup() {
-        this.elem = this.$el;
+        this.container = this.$el;
         this.selectButton = this.$refs.select;
-
-        window.EntitySelectorPopup = this;
         this.selectorEl = this.$refs.selector;
 
         this.callback = null;
@@ -19,18 +15,40 @@ class EntitySelectorPopup {
         window.$events.listen('entity-select-confirm', this.handleConfirmedSelection.bind(this));
     }
 
-    show(callback) {
+    /**
+     * Show the selector popup.
+     * @param {Function} callback
+     * @param {String} searchText
+     * @param {EntitySelectorSearchOptions} searchOptions
+     */
+    show(callback, searchText = '', searchOptions = {}) {
         this.callback = callback;
-        this.elem.components.popup.show();
+        this.getSelector().configureSearchOptions(searchOptions);
+        this.getPopup().show();
+
+        if (searchText) {
+            this.getSelector().searchText(searchText);
+        }
+
         this.getSelector().focusSearch();
     }
 
     hide() {
-        this.elem.components.popup.hide();
+        this.getPopup().hide();
     }
 
+    /**
+     * @returns {Popup}
+     */
+    getPopup() {
+        return window.$components.firstOnElement(this.container, 'popup');
+    }
+
+    /**
+     * @returns {EntitySelector}
+     */
     getSelector() {
-        return this.selectorEl.components['entity-selector'];
+        return window.$components.firstOnElement(this.selectorEl, 'entity-selector');
     }
 
     onSelectButtonClick() {
@@ -51,6 +69,5 @@ class EntitySelectorPopup {
         this.getSelector().reset();
         if (this.callback && entity) this.callback(entity);
     }
-}
 
-export default EntitySelectorPopup;
+}
