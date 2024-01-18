@@ -3,7 +3,8 @@
 @section('body')
     <div class="mt-m">
         <main class="content-wrap card">
-            <h1>{{ user()->name }}</h1>
+	    <h1>{{ user()->name }}</h1>
+    <!--<h6>{{ phpinfo() }}</h6>-->
             Hallo Leute,
             diese Seite soll Euch eine bessere Orientierung im Bookstack ermöglichen. Sie wird pro User automatisch generiert. Die generierten Links basieren auf einer Tag basierten Suche.
             Falls Ihr noch weitere Links haben wollt die für alle Mitarbeiter Sinn machen, dann schreibt eine Mail oder sprecht mich (Timo) an. <br>
