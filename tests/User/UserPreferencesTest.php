@@ -2,18 +2,16 @@
 
 namespace Tests\User;
 
-use BookStack\Entities\Models\Bookshelf;
-use BookStack\Entities\Models\Page;
 use Tests\TestCase;
 
 class UserPreferencesTest extends TestCase
 {
     public function test_update_sort_preference()
     {
-        $editor = $this->getEditor();
+        $editor = $this->users->editor();
         $this->actingAs($editor);
 
-        $updateRequest = $this->patch('/settings/users/' . $editor->id . '/change-sort/books', [
+        $updateRequest = $this->patch('/preferences/change-sort/books', [
             'sort'  => 'created_at',
             'order' => 'desc',
         ]);
@@ -31,31 +29,16 @@ class UserPreferencesTest extends TestCase
         $this->assertEquals('desc', setting()->getForCurrentUser('books_sort_order'));
     }
 
-    public function test_update_sort_preference_defaults()
-    {
-        $editor = $this->getEditor();
-        $this->actingAs($editor);
-
-        $updateRequest = $this->patch('/settings/users/' . $editor->id . '/change-sort/bookshelves', [
-            'sort'  => 'cat',
-            'order' => 'dog',
-        ]);
-        $updateRequest->assertStatus(302);
-
-        $this->assertEquals('name', setting()->getForCurrentUser('bookshelves_sort'));
-        $this->assertEquals('asc', setting()->getForCurrentUser('bookshelves_sort_order'));
-    }
-
     public function test_update_sort_bad_entity_type_handled()
     {
-        $editor = $this->getEditor();
+        $editor = $this->users->editor();
         $this->actingAs($editor);
 
-        $updateRequest = $this->patch('/settings/users/' . $editor->id . '/change-sort/dogs', [
+        $updateRequest = $this->patch('/preferences/change-sort/dogs', [
             'sort'  => 'name',
             'order' => 'asc',
         ]);
-        $updateRequest->assertStatus(500);
+        $updateRequest->assertRedirect();
 
         $this->assertNotEmpty('name', setting()->getForCurrentUser('bookshelves_sort'));
         $this->assertNotEmpty('asc', setting()->getForCurrentUser('bookshelves_sort_order'));
@@ -63,10 +46,10 @@ class UserPreferencesTest extends TestCase
 
     public function test_update_expansion_preference()
     {
-        $editor = $this->getEditor();
+        $editor = $this->users->editor();
         $this->actingAs($editor);
 
-        $updateRequest = $this->patch('/settings/users/' . $editor->id . '/update-expansion-preference/home-details', ['expand' => 'true']);
+        $updateRequest = $this->patch('/preferences/change-expansion/home-details', ['expand' => 'true']);
         $updateRequest->assertStatus(204);
 
         $this->assertDatabaseHas('settings', [
@@ -75,22 +58,22 @@ class UserPreferencesTest extends TestCase
         ]);
         $this->assertEquals(true, setting()->getForCurrentUser('section_expansion#home-details'));
 
-        $invalidKeyRequest = $this->patch('/settings/users/' . $editor->id . '/update-expansion-preference/my-home-details', ['expand' => 'true']);
+        $invalidKeyRequest = $this->patch('/preferences/change-expansion/my-home-details', ['expand' => 'true']);
         $invalidKeyRequest->assertStatus(500);
     }
 
     public function test_toggle_dark_mode()
     {
-        $home = $this->actingAs($this->getEditor())->get('/');
+        $home = $this->actingAs($this->users->editor())->get('/');
         $home->assertSee('Dark Mode');
         $this->withHtml($home)->assertElementNotExists('.dark-mode');
 
         $this->assertEquals(false, setting()->getForCurrentUser('dark-mode-enabled', false));
-        $prefChange = $this->patch('/settings/users/toggle-dark-mode');
+        $prefChange = $this->patch('/preferences/toggle-dark-mode');
         $prefChange->assertRedirect();
         $this->assertEquals(true, setting()->getForCurrentUser('dark-mode-enabled'));
 
-        $home = $this->actingAs($this->getEditor())->get('/');
+        $home = $this->actingAs($this->users->editor())->get('/');
         $this->withHtml($home)->assertElementExists('.dark-mode');
         $home->assertDontSee('Dark Mode');
         $home->assertSee('Light Mode');
@@ -109,9 +92,25 @@ class UserPreferencesTest extends TestCase
         $this->withHtml($home)->assertElementExists('.dark-mode');
     }
 
+    public function test_dark_mode_toggle_endpoint_changes_to_light_when_dark_by_default()
+    {
+        config()->set('setting-defaults.user.dark-mode-enabled', true);
+        $editor = $this->users->editor();
+
+        $this->assertEquals(true, setting()->getUser($editor, 'dark-mode-enabled'));
+        $prefChange = $this->actingAs($editor)->patch('/preferences/toggle-dark-mode');
+        $prefChange->assertRedirect();
+        $this->assertEquals(false, setting()->getUser($editor, 'dark-mode-enabled'));
+
+        $home = $this->get('/');
+        $this->withHtml($home)->assertElementNotExists('.dark-mode');
+        $home->assertDontSee('Light Mode');
+        $home->assertSee('Dark Mode');
+    }
+
     public function test_books_view_type_preferences_when_list()
     {
-        $editor = $this->getEditor();
+        $editor = $this->users->editor();
         setting()->putUser($editor, 'books_view_type', 'list');
 
         $resp = $this->actingAs($editor)->get('/books');
@@ -122,7 +121,7 @@ class UserPreferencesTest extends TestCase
 
     public function test_books_view_type_preferences_when_grid()
     {
-        $editor = $this->getEditor();
+        $editor = $this->users->editor();
         setting()->putUser($editor, 'books_view_type', 'grid');
 
         $resp = $this->actingAs($editor)->get('/books');
@@ -131,9 +130,8 @@ class UserPreferencesTest extends TestCase
 
     public function test_shelf_view_type_change()
     {
-        $editor = $this->getEditor();
-        /** @var Bookshelf $shelf */
-        $shelf = Bookshelf::query()->first();
+        $editor = $this->users->editor();
+        $shelf = $this->entities->shelf();
         setting()->putUser($editor, 'bookshelf_view_type', 'list');
 
         $resp = $this->actingAs($editor)->get($shelf->getUrl())->assertSee('Grid View');
@@ -141,7 +139,10 @@ class UserPreferencesTest extends TestCase
             ->assertElementNotExists('.featured-image-container')
             ->assertElementExists('.content-wrap .entity-list-item');
 
-        $req = $this->patch("/settings/users/{$editor->id}/switch-shelf-view", ['view_type' => 'grid']);
+        $req = $this->patch("/preferences/change-view/bookshelf", [
+            'view' => 'grid',
+            '_return' => $shelf->getUrl(),
+        ]);
         $req->assertRedirect($shelf->getUrl());
 
         $resp = $this->actingAs($editor)->get($shelf->getUrl())
@@ -154,18 +155,18 @@ class UserPreferencesTest extends TestCase
 
     public function test_update_code_language_favourite()
     {
-        $editor = $this->getEditor();
-        $page = Page::query()->first();
+        $editor = $this->users->editor();
+        $page = $this->entities->page();
         $this->actingAs($editor);
 
-        $this->patch('/settings/users/update-code-language-favourite', ['language' => 'php', 'active' => true]);
-        $this->patch('/settings/users/update-code-language-favourite', ['language' => 'javascript', 'active' => true]);
+        $this->patch('/preferences/update-code-language-favourite', ['language' => 'php', 'active' => true]);
+        $this->patch('/preferences/update-code-language-favourite', ['language' => 'javascript', 'active' => true]);
 
         $resp = $this->get($page->getUrl('/edit'));
         $resp->assertSee('option:code-editor:favourites="php,javascript"', false);
 
-        $this->patch('/settings/users/update-code-language-favourite', ['language' => 'ruby', 'active' => true]);
-        $this->patch('/settings/users/update-code-language-favourite', ['language' => 'php', 'active' => false]);
+        $this->patch('/preferences/update-code-language-favourite', ['language' => 'ruby', 'active' => true]);
+        $this->patch('/preferences/update-code-language-favourite', ['language' => 'php', 'active' => false]);
 
         $resp = $this->get($page->getUrl('/edit'));
         $resp->assertSee('option:code-editor:favourites="javascript,ruby"', false);

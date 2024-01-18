@@ -2,13 +2,11 @@
 
 namespace Tests;
 
-use BookStack\Auth\Permissions\JointPermissionBuilder;
-use BookStack\Auth\Permissions\RolePermission;
-use BookStack\Auth\Role;
-use BookStack\Auth\User;
 use BookStack\Entities\Models\Book;
 use BookStack\Entities\Models\Chapter;
-use BookStack\Entities\Models\Page;
+use BookStack\Permissions\Models\RolePermission;
+use BookStack\Users\Models\Role;
+use BookStack\Users\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 
@@ -17,11 +15,11 @@ class PublicActionTest extends TestCase
     public function test_app_not_public()
     {
         $this->setSettings(['app-public' => 'false']);
-        $book = Book::query()->first();
+        $book = $this->entities->book();
         $this->get('/books')->assertRedirect('/login');
         $this->get($book->getUrl())->assertRedirect('/login');
 
-        $page = Page::query()->first();
+        $page = $this->entities->page();
         $this->get($page->getUrl())->assertRedirect('/login');
     }
 
@@ -90,11 +88,9 @@ class PublicActionTest extends TestCase
         foreach (RolePermission::all() as $perm) {
             $publicRole->attachPermission($perm);
         }
-        $this->app->make(JointPermissionBuilder::class)->rebuildForRole($publicRole);
         user()->clearPermissionCache();
 
-        /** @var Chapter $chapter */
-        $chapter = Chapter::query()->first();
+        $chapter = $this->entities->chapter();
         $resp = $this->get($chapter->getUrl());
         $resp->assertSee('New Page');
         $this->withHtml($resp)->assertElementExists('a[href="' . $chapter->getUrl('/create-page') . '"]');
@@ -107,7 +103,7 @@ class PublicActionTest extends TestCase
         $resp = $this->post($chapter->getUrl('/create-guest-page'), ['name' => 'My guest page']);
         $resp->assertRedirect($chapter->book->getUrl('/page/my-guest-page/edit'));
 
-        $user = User::getDefault();
+        $user = $this->users->guest();
         $this->assertDatabaseHas('pages', [
             'name'       => 'My guest page',
             'chapter_id' => $chapter->id,
@@ -118,7 +114,7 @@ class PublicActionTest extends TestCase
 
     public function test_content_not_listed_on_404_for_public_users()
     {
-        $page = Page::query()->first();
+        $page = $this->entities->page();
         $page->fill(['name' => 'my testing random unique page name'])->save();
         $this->asAdmin()->get($page->getUrl()); // Fake visit to show on recents
         $resp = $this->get('/cats/dogs/hippos');
@@ -159,11 +155,22 @@ class PublicActionTest extends TestCase
         $this->get('/robots.txt')->assertSee("User-agent: *\nDisallow: /");
     }
 
+    public function test_default_favicon_file_created_upon_access()
+    {
+        $faviconPath = public_path('favicon.ico');
+        if (file_exists($faviconPath)) {
+            unlink($faviconPath);
+        }
+
+        $this->assertFileDoesNotExist($faviconPath);
+        $this->get('/favicon.ico');
+        $this->assertFileExists($faviconPath);
+    }
+
     public function test_public_view_then_login_redirects_to_previous_content()
     {
         $this->setSettings(['app-public' => 'true']);
-        /** @var Book $book */
-        $book = Book::query()->first();
+        $book = $this->entities->book();
         $resp = $this->get($book->getUrl());
         $resp->assertSee($book->name);
 
@@ -175,9 +182,8 @@ class PublicActionTest extends TestCase
     public function test_access_hidden_content_then_login_redirects_to_intended_content()
     {
         $this->setSettings(['app-public' => 'true']);
-        /** @var Book $book */
-        $book = Book::query()->first();
-        $this->setEntityRestrictions($book);
+        $book = $this->entities->book();
+        $this->permissions->setEntityPermissions($book);
 
         $resp = $this->get($book->getUrl());
         $resp->assertSee('Book not found');
@@ -186,5 +192,31 @@ class PublicActionTest extends TestCase
         $resp = $this->post('/login', ['email' => 'admin@admin.com', 'password' => 'password']);
         $resp->assertRedirect($book->getUrl());
         $this->followRedirects($resp)->assertSee($book->name);
+    }
+
+    public function test_public_view_can_take_on_other_roles()
+    {
+        $this->setSettings(['app-public' => 'true']);
+        $newRole = $this->users->attachNewRole($this->users->guest(), []);
+        $page = $this->entities->page();
+        $this->permissions->disableEntityInheritedPermissions($page);
+        $this->permissions->addEntityPermission($page, ['view', 'update'], $newRole);
+
+        $resp = $this->get($page->getUrl());
+        $resp->assertOk();
+
+        $this->withHtml($resp)->assertLinkExists($page->getUrl('/edit'));
+    }
+
+    public function test_public_user_cannot_view_or_update_their_profile()
+    {
+        $this->setSettings(['app-public' => 'true']);
+        $guest = $this->users->guest();
+
+        $resp = $this->get($guest->getEditUrl());
+        $this->assertPermissionError($resp);
+
+        $resp = $this->put($guest->getEditUrl(), ['name' => 'My new guest name']);
+        $this->assertPermissionError($resp);
     }
 }

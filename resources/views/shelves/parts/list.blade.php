@@ -1,10 +1,9 @@
-
 <main class="content-wrap mt-m card">
 
     <div class="grid half v-center">
         <h1 class="list-heading">{{ trans('entities.shelves') }}</h1>
         <div class="text-right">
-            @include('entities.sort', ['options' => $sortOptions, 'order' => $order, 'sort' => $sort, 'type' => 'bookshelves'])
+            @include('common.sort', $listOptions->getSortControlData())
         </div>
     </div>
 
@@ -31,7 +30,13 @@
     @else
         <p class="text-muted">{{ trans('entities.shelves_empty') }}</p>
         @if(userCan('bookshelf-create-all'))
-            <a href="{{ url("/create-shelf") }}" class="button outline">@icon('edit'){{ trans('entities.create_now') }}</a>
+            <div class="icon-list block inline">
+                <a href="{{ url("/create-shelf") }}"
+                   class="icon-list-item text-bookshelf">
+                    <span>@icon('add')</span>
+                    <span>{{ trans('entities.create_now') }}</span>
+                </a>
+            </div>
         @endif
     @endif
 

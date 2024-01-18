@@ -11,8 +11,7 @@ class ChapterTest extends TestCase
 {
     public function test_create()
     {
-        /** @var Book $book */
-        $book = Book::query()->first();
+        $book = $this->entities->book();
 
         $chapter = Chapter::factory()->make([
             'name' => 'My First Chapter',
@@ -24,12 +23,23 @@ class ChapterTest extends TestCase
         $resp = $this->get($book->getUrl('/create-chapter'));
         $this->withHtml($resp)->assertElementContains('form[action="' . $book->getUrl('/create-chapter') . '"][method="POST"]', 'Save Chapter');
 
-        $resp = $this->post($book->getUrl('/create-chapter'), $chapter->only('name', 'description'));
+        $resp = $this->post($book->getUrl('/create-chapter'), $chapter->only('name', 'description_html'));
         $resp->assertRedirect($book->getUrl('/chapter/my-first-chapter'));
 
         $resp = $this->get($book->getUrl('/chapter/my-first-chapter'));
         $resp->assertSee($chapter->name);
-        $resp->assertSee($chapter->description);
+        $resp->assertSee($chapter->description_html, false);
+    }
+
+    public function test_show_view_displays_description_if_no_description_html_set()
+    {
+        $chapter = $this->entities->chapter();
+        $chapter->description_html = '';
+        $chapter->description = "My great\ndescription\n\nwith newlines";
+        $chapter->save();
+
+        $resp = $this->asEditor()->get($chapter->getUrl());
+        $resp->assertSee("<p>My great<br>\ndescription<br>\n<br>\nwith newlines</p>", false);
     }
 
     public function test_delete()
@@ -58,8 +68,7 @@ class ChapterTest extends TestCase
 
     public function test_show_view_has_copy_button()
     {
-        /** @var Chapter $chapter */
-        $chapter = Chapter::query()->first();
+        $chapter = $this->entities->chapter();
 
         $resp = $this->asEditor()->get($chapter->getUrl());
         $this->withHtml($resp)->assertElementContains("a[href$=\"{$chapter->getUrl('/copy')}\"]", 'Copy');
@@ -67,8 +76,7 @@ class ChapterTest extends TestCase
 
     public function test_copy_view()
     {
-        /** @var Chapter $chapter */
-        $chapter = Chapter::query()->first();
+        $chapter = $this->entities->chapter();
 
         $resp = $this->asEditor()->get($chapter->getUrl('/copy'));
         $resp->assertOk();
@@ -99,15 +107,12 @@ class ChapterTest extends TestCase
 
     public function test_copy_does_not_copy_non_visible_pages()
     {
-        /** @var Chapter $chapter */
-        $chapter = Chapter::query()->whereHas('pages')->first();
+        $chapter = $this->entities->chapterHasPages();
 
         // Hide pages to all non-admin roles
         /** @var Page $page */
         foreach ($chapter->pages as $page) {
-            $page->restricted = true;
-            $page->save();
-            $this->regenEntityPermissions($page);
+            $this->permissions->setEntityPermissions($page, [], []);
         }
 
         $this->asEditor()->post($chapter->getUrl('/copy'), [
@@ -121,10 +126,9 @@ class ChapterTest extends TestCase
 
     public function test_copy_does_not_copy_pages_if_user_cant_page_create()
     {
-        /** @var Chapter $chapter */
-        $chapter = Chapter::query()->whereHas('pages')->first();
-        $viewer = $this->getViewer();
-        $this->giveUserPermissions($viewer, ['chapter-create-all']);
+        $chapter = $this->entities->chapterHasPages();
+        $viewer = $this->users->viewer();
+        $this->permissions->grantUserRolePermissions($viewer, ['chapter-create-all']);
 
         // Lacking permission results in no copied pages
         $this->actingAs($viewer)->post($chapter->getUrl('/copy'), [
@@ -135,7 +139,7 @@ class ChapterTest extends TestCase
         $newChapter = Chapter::query()->where('name', '=', 'My copied chapter')->first();
         $this->assertEquals(0, $newChapter->pages()->count());
 
-        $this->giveUserPermissions($viewer, ['page-create-all']);
+        $this->permissions->grantUserRolePermissions($viewer, ['page-create-all']);
 
         // Having permission rules in copied pages
         $this->actingAs($viewer)->post($chapter->getUrl('/copy'), [
@@ -149,10 +153,9 @@ class ChapterTest extends TestCase
 
     public function test_sort_book_action_visible_if_permissions_allow()
     {
-        /** @var Chapter $chapter */
-        $chapter = Chapter::query()->first();
+        $chapter = $this->entities->chapter();
 
-        $resp = $this->actingAs($this->getViewer())->get($chapter->getUrl());
+        $resp = $this->actingAs($this->users->viewer())->get($chapter->getUrl());
         $this->withHtml($resp)->assertLinkNotExists($chapter->book->getUrl('sort'));
 
         $resp = $this->asEditor()->get($chapter->getUrl());
