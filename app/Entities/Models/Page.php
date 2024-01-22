@@ -207,19 +207,21 @@ class Page extends BookChild
             if(preg_match_all("/$regexp/siU", $html, $matches)) {
                 foreach($matches[2] as $match)
                 {
-                    $url = explode('/', $match);
-                    $lastPart = array_pop($url);
-                    foreach($tempPages->keys() as $key)
-                    {
-                        $subPage = $tempPages[$key];
-                        if($subPage->slug == $lastPart)
+                    if(str_contains($match, "/pages/") or str_contains($match, "/page/")) {                  
+                        $url = explode('/', $match);
+                        $lastPart = array_pop($url);
+                        foreach($tempPages->keys() as $key)
                         {
-                            $replaceString = "#page-" . $subPage->id;
-                            if($replacedValues)
+                            $subPage = $tempPages[$key];
+                            if($subPage->slug == $lastPart)
                             {
-                                $replacedValues[$match] = $replaceString;
+                                $replaceString = "#page-" . $subPage->id;
+                                if($replacedValues)
+                                {
+                                    $replacedValues[$match] = $replaceString;
+                                }
+                                $page->html = str_replace($match, $replaceString, $page->html);
                             }
-                            $page->html = str_replace($match, $replaceString, $page->html);
                         }
                     }
                 }
