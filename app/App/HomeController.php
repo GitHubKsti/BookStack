@@ -104,7 +104,7 @@ class HomeController extends Controller
 
         if ($homepageOption === 'user_dependend')
         {
-            $shelves = app(BookshelfRepo::class)->getAllPaginated(18, $commonData['sort'], $commonData['order']);
+            $shelves = app(BookshelfRepo::class)->getAllPaginated(18, $commonData['listOptions']->getSort(), $commonData['listOptions']->getOrder());
             $data = array_merge($commonData, ['shelves' => $shelves]);
             return view('home.user_dependend', $data);
         }
